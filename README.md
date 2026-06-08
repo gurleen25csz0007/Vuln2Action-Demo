@@ -1,5 +1,6 @@
 # Vuln2Action-Demo
 This repository contains the demo video for the exploit code to be tested in sandboxed environment.
+The testing has been done using the vulhub platform .
 # CVE-2016-10134 Zabbix SQL Injection Report
 
 ## 1. Introduction to CVE-2016-10134
