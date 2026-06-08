@@ -81,7 +81,7 @@ Use the default guest account:
 Username: guest
 Password: <blank>
 ```
-
+![Auth Token Capture](login_zabbix.png)
 ## 2. Obtain Session ID
 
 After login, obtain the session identifier from browser cookies.
@@ -115,6 +115,8 @@ http://localhost:8080/latest.php?output=ajax&sid=055e1ffa36164a58&favobj=toggle&
 ### Expected Result
 
 The response returns a database error containing the current database user, confirming successful SQL injection.
+
+![Auth Token Capture](result1.png)
 
 ---
 
@@ -198,6 +200,7 @@ Responses identical
 
 Vulnerability NOT confirmed
 ```
+![Auth Token Capture](updated_result2.png)
 
 ### Analysis
 
