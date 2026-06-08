@@ -1,4 +1,4 @@
-# Vuln2Action-Demo
+<img width="580" height="302" alt="image" src="https://github.com/user-attachments/assets/a592ad9a-b059-4fa6-9e45-b131060af37e" /># Vuln2Action-Demo
 This repository contains the demo video for the exploit code to be tested in sandboxed environment.
 The testing has been done using the vulhub platform .
 # CVE-2016-10134 Validation using Vulhub
@@ -196,9 +196,9 @@ Boolean payloads:
 TRUE length: 7285
 FALSE length: 7285
 
-Responses identical
+Responses identical- Boolean detection inconclusive
 
-Vulnerability NOT confirmed
+Vulnerability NOT confirmed by any method
 ```
 ![Auth Token Capture](updated_result2.png)
 
@@ -272,6 +272,9 @@ Users:
 ```
 
 ---
+![Auth Token Capture](result_4.png)
+
+![Auth Token Capture](result_5.png)
 
 # Cleanup
 
